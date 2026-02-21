@@ -3,9 +3,13 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { PrismaClient } from "@prisma/client";
-
 const prisma = new PrismaClient();
 
+// Netlify supplies the URL environment variable, Vercel supplies VERCEL_URL.
+// Without this, NextAuth falls back to localhost:3000 on Netlify.
+if (process.env.URL && !process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = process.env.URL;
+}
 const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
