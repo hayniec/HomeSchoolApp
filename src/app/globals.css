@@ -126,13 +126,13 @@ body {
   border-radius: 12px;
   color: var(--text-main);
   font-size: 1.1rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .input:focus {
   outline: none;
   border-color: var(--primary);
-  background: #ffffff;
+  background: var(--sidebar-bg);
 }
 
 .input::placeholder {
