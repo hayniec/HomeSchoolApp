@@ -60,3 +60,39 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function DELETE(req: Request) {
+    try {
+        const session = await getServerSession();
+        // Allow fallback for basic testing like before
+        const email = session?.user?.email ?? "admin@admin.com";
+
+        if (!email) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { data: parent } = await supabase.from('User').select('id').eq('email', email).single();
+        if (!parent) {
+            return NextResponse.json({ error: "Parent not found" }, { status: 404 });
+        }
+
+        const { childId } = await req.json();
+
+        // Check if child exists and belongs to parent
+        const { data: child } = await supabase.from('User').select('id, parentId').eq('id', childId).single();
+        if (!child || child.parentId !== parent.id) {
+            return NextResponse.json({ error: "Student not found or unauthorized" }, { status: 404 });
+        }
+
+        const { error } = await supabase.from('User').delete().eq('id', childId);
+
+        if (error) {
+            throw error;
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error("Child Deletion Error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}

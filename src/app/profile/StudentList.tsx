@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as Dialog from '@radix-ui/react-dialog';
+import { useRouter } from "next/navigation";
 
 interface StudentListProps {
     childrenProfiles: any[];
@@ -12,6 +13,32 @@ interface StudentListProps {
 
 export default function StudentList({ childrenProfiles, events, parentId, parentName }: StudentListProps) {
     const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const router = useRouter();
+
+    const handleDelete = async (childId: string) => {
+        if (!confirm("Are you sure you want to remove this student profile? This action cannot be undone.")) return;
+
+        setIsDeleting(true);
+        try {
+            const res = await fetch("/api/children", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ childId }),
+            });
+            if (res.ok) {
+                setSelectedStudent(null);
+                router.refresh();
+            } else {
+                alert("Failed to remove student.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("An error occurred while trying to remove the student.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const renderSchedule = (title: string, ownerId: string) => {
         const ownerEvents = events.filter(e => e.userId === ownerId);
@@ -100,7 +127,17 @@ export default function StudentList({ childrenProfiles, events, parentId, parent
                             <Dialog.Title style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
                                 {selectedStudent?.name}'s View
                             </Dialog.Title>
-                            <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => setSelectedStudent(null)}>Close</button>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button
+                                    className="btn btn-outline"
+                                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                                    onClick={() => handleDelete(selectedStudent.id)}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? "Removing..." : "Remove Student"}
+                                </button>
+                                <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => setSelectedStudent(null)}>Close</button>
+                            </div>
                         </div>
 
                         {selectedStudent && renderSchedule(`${selectedStudent.name}'s`, selectedStudent.id)}
