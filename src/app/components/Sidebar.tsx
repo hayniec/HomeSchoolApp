@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -19,8 +20,17 @@ export function Sidebar() {
 
     return (
         <div className="sidebar">
-            <div className="sidebar-header">
-                <h2 style={{ color: "white", margin: 0, textShadow: "0px 2px 4px rgba(0,0,0,0.3)" }}>HS Hub</h2>
+            <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 10px' }}>
+                <Link href="/">
+                    <Image
+                        src="/Homeschoolhublogo.jpg"
+                        alt="Homeschool Hub Logo"
+                        width={180}
+                        height={90}
+                        style={{ borderRadius: '12px', objectFit: 'contain' }}
+                        priority
+                    />
+                </Link>
             </div>
 
             <div className="sidebar-nav">

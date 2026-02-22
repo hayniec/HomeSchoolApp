@@ -2,6 +2,7 @@
 
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -33,7 +34,17 @@ export default function Home() {
   if (!session) {
     return (
       <div className="container">
-        <div className="glass-card auth-form">
+        <div className="glass-card auth-form" style={{ marginTop: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <Image
+              src="/Homeschoolhublogo.jpg"
+              alt="Homeschool Hub Logo"
+              width={240}
+              height={120}
+              style={{ borderRadius: '12px', objectFit: 'contain' }}
+              priority
+            />
+          </div>
           <h2 className="card-title" style={{ textAlign: 'center' }}>{isRegistering ? "Create Account" : "Welcome Back"}</h2>
           <form onSubmit={handleAuth}>
             {isRegistering && (
@@ -55,10 +66,12 @@ export default function Home() {
 
   return (
     <div className="container">
-      <header className="header">
-        <div>
-          <h1 style={{ margin: 0 }}>Homeschool Hub</h1>
-          <p style={{ margin: 0, color: 'var(--text-muted)' }}>Welcome, {session.user?.name || session.user?.email}</p>
+      <header className="header" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div>
+            <h1 style={{ margin: 0 }}>Dashboard</h1>
+            <p style={{ margin: 0, color: 'var(--text-muted)' }}>Welcome back, {session.user?.name || session.user?.email}</p>
+          </div>
         </div>
         <button className="btn btn-outline" onClick={() => signOut()}>Sign Out</button>
       </header>
