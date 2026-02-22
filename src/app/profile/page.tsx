@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { supabase } from "@/lib/supabase";
 import ProfileClientActions from "./ProfileClientActions";
+import StudentList from "./StudentList";
 
 export const dynamic = 'force-dynamic';
 
@@ -97,27 +98,15 @@ export default async function ProfilePage() {
             </div>
 
             <h2 style={{ fontSize: '2rem', marginTop: '3rem', marginBottom: '1.5rem' }}>Student Profiles</h2>
-            {children.length === 0 ? (
-                <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                    No student profiles linked to this account.
-                </div>
-            ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-                    {children.map(child => (
-                        <div key={child.id} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--bg-main)', border: '2px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '1rem' }}>
-                                {child.name?.[0]?.toUpperCase() || 'S'}
-                            </div>
-                            <h3 style={{ margin: '0 0 0.5rem 0' }}>{child.name}</h3>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{child.gradeLevel || 'Student'}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
+            <StudentList
+                childrenProfiles={children}
+                events={events}
+                parentId={user.id}
+                parentName={user.name || "Parent"}
+            />
 
-            <h2 style={{ fontSize: '2rem', marginTop: '2rem', marginBottom: '1.5rem' }}>Schedules</h2>
+            <h2 style={{ fontSize: '2rem', marginTop: '2rem', marginBottom: '1.5rem' }}>My Schedule</h2>
             {renderSchedule("My", user.id)}
-            {children.map(child => renderSchedule(`${child.name}'s`, child.id))}
 
         </div>
     );

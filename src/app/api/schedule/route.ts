@@ -1,4 +1,4 @@
-import { NextResponse } from "next/dist/server/web/spec-extension/response";
+import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { getServerSession } from "next-auth";
 
