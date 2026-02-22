@@ -63,7 +63,7 @@ export default function StudentList({ childrenProfiles, events, parentId, parent
                         style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', cursor: 'pointer', transition: 'transform 0.2s', ...({ ':hover': { transform: 'scale(1.02)' } } as any) }}
                         onClick={() => setSelectedStudent(child)}
                     >
-                        <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--bg-main)', border: '2px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '1rem' }}>
+                        <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#ffffff', border: '2px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '1rem' }}>
                             {child.name?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <h3 style={{ margin: '0 0 0.5rem 0' }}>{child.name}</h3>
@@ -90,7 +90,7 @@ export default function StudentList({ childrenProfiles, events, parentId, parent
                         maxWidth: '600px',
                         maxHeight: '85vh',
                         padding: '2rem',
-                        backgroundColor: 'var(--bg-main)',
+                        backgroundColor: '#ffffff',
                         borderRadius: '16px',
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4)',
                         zIndex: 51,

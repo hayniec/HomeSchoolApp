@@ -71,3 +71,8 @@ To ensure users have an active, paid subscription before accessing the Homeschoo
 - **Integration Tool:** Stripe Checkout (for pre-built, secure checkout pages) + Stripe Customer Portal (for users to manage billing independently).
 - **Webhooks:** Next.js Route Handlers (`/api/webhooks`) specifically configured to listen to Stripe events securely.
 - **Database:** Supabase (expanding the `User` table to hold Stripe mapping data).
+
+#### 4. Co-Parenting / Household Linking (Future Architecture)
+- **Goal:** Allow multiple adult accounts (e.g., spouses, co-parents, tutors) to link to the same household/students without requiring redundant duplicate subscriptions.
+- **Process:** The primary billing `PARENT` will be able to generate a secure email invitation link from their profile dashboard.
+- **Status Sharing:** The linked adult (second parent) will receive full view/edit access to the linked `STUDENT` profiles. The system will dynamically check the primary parent's `subscriptionStatus`, allowing the second adult to safely bypass the paywall as long as the household subscription is actively maintained.

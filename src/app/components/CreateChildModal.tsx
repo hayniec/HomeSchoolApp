@@ -39,7 +39,7 @@ export function CreateChildModal({ isOpen, onClose, onSubmit, loading }: ModalPr
                     maxWidth: '500px',
                     maxHeight: '85vh',
                     padding: '2rem',
-                    backgroundColor: 'var(--bg-main)',
+                    backgroundColor: '#ffffff',
                     borderRadius: '16px',
                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4)',
                     zIndex: 51,
