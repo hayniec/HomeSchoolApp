@@ -6,7 +6,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 
-export function Sidebar() {
+interface SidebarProps {
+    isOpen?: boolean;
+    closeSidebar?: () => void;
+    isMobile?: boolean;
+}
+
+export function Sidebar({ isOpen, closeSidebar, isMobile }: SidebarProps) {
     const pathname = usePathname();
 
     const navItems = [
@@ -18,7 +24,16 @@ export function Sidebar() {
     ];
 
     return (
-        <div className="sidebar">
+        <div className={`sidebar ${isOpen && isMobile ? 'open' : ''}`}>
+            {isMobile && closeSidebar && (
+                <button
+                    onClick={closeSidebar}
+                    style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-main)' }}
+                    aria-label="Close Sidebar"
+                >
+                    <LogOut size={24} style={{ transform: 'rotate(180deg)' }} />
+                </button>
+            )}
             <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 10px' }}>
                 <Link href="/">
                     <Image
@@ -36,7 +51,7 @@ export function Sidebar() {
                 {navItems.map((item, idx) => {
                     const isActive = pathname === item.href;
                     return (
-                        <Link key={idx} href={item.href} style={{ textDecoration: 'none' }}>
+                        <Link key={idx} href={item.href} style={{ textDecoration: 'none' }} onClick={() => { if (isMobile && closeSidebar) closeSidebar(); }}>
                             <div className={`sidebar-item ${isActive ? "active" : ""}`}>
                                 {item.icon}
                                 <span style={{ fontWeight: 600 }}>{item.label}</span>
