@@ -2,7 +2,6 @@
 
 import { MessageSquare, Calendar, BookOpen, User, LogOut, Home } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -48,9 +47,6 @@ export function Sidebar() {
             </div>
 
             <div className="sidebar-footer">
-                <div style={{ marginBottom: "1rem" }}>
-                    <ThemeToggle />
-                </div>
                 <div className="sidebar-item" onClick={() => signOut()}>
                     <LogOut size={20} />
                     <span style={{ fontWeight: 600 }}>Sign Out</span>

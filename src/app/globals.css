@@ -11,19 +11,6 @@
   --input-bg: rgba(255, 255, 255, 0.9);
 }
 
-[data-theme='dark'] {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --bg-color: #0f172a;
-  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-  --card-bg: rgba(30, 41, 59, 0.7);
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --sidebar-bg: rgba(15, 23, 42, 0.85);
-  --input-bg: rgba(0, 0, 0, 0.2);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -176,10 +163,6 @@ body {
   text-align: center;
 }
 
-[data-theme='dark'] .sidebar-header {
-  border-bottom: 2px dashed rgba(255, 255, 255, 0.1);
-}
-
 .sidebar-nav {
   flex: 1;
   display: flex;
@@ -206,19 +189,10 @@ body {
   box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
 }
 
-[data-theme='dark'] .sidebar-item:hover,
-[data-theme='dark'] .sidebar-item.active {
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
 .sidebar-footer {
   margin-top: auto;
   padding-top: 1rem;
   border-top: 2px dashed rgba(255, 107, 107, 0.3);
-}
-
-[data-theme='dark'] .sidebar-footer {
-  border-top: 2px dashed rgba(255, 255, 255, 0.1);
 }
 
 /* Responsive Design */
