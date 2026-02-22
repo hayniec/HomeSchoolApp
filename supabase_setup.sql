@@ -9,7 +9,8 @@ CREATE TABLE "User" (
     "image" text,
     "role" text DEFAULT 'STUDENT',
     "bio" text,
-    "gradeLevel" text
+    "gradeLevel" text,
+    "parentId" text REFERENCES "User"("id") ON DELETE CASCADE
 );
 CREATE TABLE "Account" (
     "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,

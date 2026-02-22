@@ -18,7 +18,6 @@ export function Sidebar({ isOpen, closeSidebar, isMobile }: SidebarProps) {
     const navItems = [
         { label: "Dashboard", href: "/", icon: <Home size={20} /> },
         { label: "Community Forum", href: "/forum", icon: <MessageSquare size={20} /> },
-        { label: "Schedule", href: "/schedule", icon: <Calendar size={20} /> },
         { label: "Resources", href: "/resources", icon: <BookOpen size={20} /> },
         { label: "My Profile", href: "/profile", icon: <User size={20} /> },
     ];
