@@ -3,14 +3,18 @@
 import { MessageSquare, Calendar, BookOpen, User, LogOut, Home } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { ThemeToggle } from "./ThemeToggle";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function Sidebar() {
+    const pathname = usePathname();
+
     const navItems = [
-        { label: "Dashboard", icon: <Home size={20} />, active: true },
-        { label: "Community Forum", icon: <MessageSquare size={20} /> },
-        { label: "Schedule", icon: <Calendar size={20} /> },
-        { label: "Resources", icon: <BookOpen size={20} /> },
-        { label: "My Profile", icon: <User size={20} /> },
+        { label: "Dashboard", href: "/", icon: <Home size={20} /> },
+        { label: "Community Forum", href: "/forum", icon: <MessageSquare size={20} /> },
+        { label: "Schedule", href: "/schedule", icon: <Calendar size={20} /> },
+        { label: "Resources", href: "/resources", icon: <BookOpen size={20} /> },
+        { label: "My Profile", href: "/profile", icon: <User size={20} /> },
     ];
 
     return (
@@ -20,12 +24,17 @@ export function Sidebar() {
             </div>
 
             <div className="sidebar-nav">
-                {navItems.map((item, idx) => (
-                    <div key={idx} className={`sidebar-item ${item.active ? "active" : ""}`}>
-                        {item.icon}
-                        <span style={{ fontWeight: 600 }}>{item.label}</span>
-                    </div>
-                ))}
+                {navItems.map((item, idx) => {
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link key={idx} href={item.href} style={{ textDecoration: 'none' }}>
+                            <div className={`sidebar-item ${isActive ? "active" : ""}`}>
+                                {item.icon}
+                                <span style={{ fontWeight: 600 }}>{item.label}</span>
+                            </div>
+                        </Link>
+                    );
+                })}
             </div>
 
             <div className="sidebar-footer">
