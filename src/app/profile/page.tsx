@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth";
 import { PrismaClient } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 export default async function ProfilePage() {
