@@ -1,14 +1,17 @@
-import { PrismaClient } from "@prisma/client";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
-const prisma = new PrismaClient();
-
 export default async function ResourcesPage() {
-    const resources = await prisma.resource.findMany({
-        include: { uploadedBy: true },
-        orderBy: { createdAt: 'desc' }
-    });
+    const { data: rawResources } = await supabase
+        .from("Resource")
+        .select(`
+            *,
+            uploadedBy:User!uploadedById(id, name)
+        `)
+        .order('createdAt', { ascending: false });
+
+    const resources = rawResources as any[] || [];
 
     return (
         <div className="container" style={{ paddingTop: '2rem' }}>

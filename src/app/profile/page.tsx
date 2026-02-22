@@ -1,9 +1,7 @@
 import { getServerSession } from "next-auth";
-import { PrismaClient } from "@prisma/client";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
-
-const prisma = new PrismaClient();
 
 export default async function ProfilePage() {
     // Note: We'd normally use the session to get the logged-in user's profile,
@@ -13,13 +11,17 @@ export default async function ProfilePage() {
     // Fallback to admin if session is null during isolated testing
     const email = session?.user?.email ?? "admin@admin.com";
 
-    const user = await prisma.user.findUnique({
-        where: { email },
-        include: {
-            forumPosts: true,
-            resources: true,
-        }
-    });
+    const { data: rawUser } = await supabase
+        .from("User")
+        .select(`
+            *,
+            forumPosts:ForumPost(*),
+            resources:Resource(*)
+        `)
+        .eq("email", email)
+        .single();
+
+    const user = rawUser as any;
 
     if (!user) {
         return <div className="container">User not found.</div>;

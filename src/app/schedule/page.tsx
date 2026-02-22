@@ -1,14 +1,17 @@
-import { PrismaClient } from "@prisma/client";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
-const prisma = new PrismaClient();
-
 export default async function SchedulePage() {
-    const events = await prisma.scheduleEvent.findMany({
-        include: { user: true },
-        orderBy: { startTime: 'asc' }
-    });
+    const { data: rawEvents } = await supabase
+        .from("ScheduleEvent")
+        .select(`
+            *,
+            user:User(id, name)
+        `)
+        .order('startTime', { ascending: true });
+
+    const events = rawEvents as any[] || [];
 
     return (
         <div className="container" style={{ paddingTop: '2rem' }}>
