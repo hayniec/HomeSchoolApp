@@ -23,7 +23,7 @@ export function Sidebar() {
             <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 10px' }}>
                 <Link href="/">
                     <Image
-                        src="/Homeschoolhublogo.jpg"
+                        src="/HomeschoolHubLogo.svg"
                         alt="Homeschool Hub Logo"
                         width={180}
                         height={90}

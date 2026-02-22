@@ -37,7 +37,7 @@ export default function Home() {
         <div className="glass-card auth-form" style={{ marginTop: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
             <Image
-              src="/Homeschoolhublogo.jpg"
+              src="/HomeschoolHubLogo.svg"
               alt="Homeschool Hub Logo"
               width={240}
               height={120}
