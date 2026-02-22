@@ -15,8 +15,15 @@ model User {
   emailVerified DateTime?
   password      String?
   image         String?
+  role          String    @default("STUDENT") // STUDENT, PARENT, ADMIN
+  bio           String?
+  gradeLevel    String?
   accounts      Account[]
   sessions      Session[]
+  forumPosts    ForumPost[]
+  forumComments ForumComment[]
+  scheduleEvents ScheduleEvent[]
+  resources     Resource[]
 }
 
 model Account {
@@ -52,4 +59,45 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model ForumPost {
+  id        String         @id @default(cuid())
+  title     String
+  content   String
+  authorId  String
+  createdAt DateTime       @default(now())
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  ForumComment[]
+}
+
+model ForumComment {
+  id        String    @id @default(cuid())
+  content   String
+  postId    String
+  authorId  String
+  createdAt DateTime  @default(now())
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model ScheduleEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Resource {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  url          String
+  category     String
+  createdAt    DateTime @default(now())
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 }
