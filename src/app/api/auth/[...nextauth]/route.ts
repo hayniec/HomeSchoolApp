@@ -21,13 +21,19 @@ const handler = NextAuth({
       },
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user || !user.password) return null;
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isPasswordValid) return null;
+        try {
+          const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+          if (!user || !user.password) return null;
 
-        return user;
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+          if (!isPasswordValid) return null;
+
+          return user;
+        } catch (error) {
+          console.error("NextAuth Authorize Error:", error);
+          throw new Error("Failed to authenticate to the database. Check Netlify function logs.");
+        }
       }
     })
   ],
