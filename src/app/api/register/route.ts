@@ -32,7 +32,8 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json(user);
-    } catch (error) {
-        return new NextResponse("Internal Error", { status: 500 });
+    } catch (error: any) {
+        console.error("Register Error details:", error);
+        return new NextResponse(error.message || "Internal Error", { status: 500 });
     }
 }
