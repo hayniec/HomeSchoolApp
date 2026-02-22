@@ -40,6 +40,22 @@ const handler = NextAuth({
     })
   ],
   session: { strategy: "jwt" },
+  callbacks: {
+    async jwt({ token, user, trigger }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as any).role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
+      }
+      return session;
+    }
+  },
   secret: process.env.NEXTAUTH_SECRET || "my-super-secret-key-12345!@#",
 });
 
