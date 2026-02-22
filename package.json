@@ -10,6 +10,7 @@
     "generate": "prisma generate && prisma db push --accept-data-loss && prisma db seed"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
     "@supabase/supabase-js": "^2.97.0",
     "@types/jsdom": "^27.0.0",
     "bcryptjs": "^3.0.3",

@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { supabase } from "@/lib/supabase";
+import ProfileClientActions from "./ProfileClientActions";
 
 export const dynamic = 'force-dynamic';
 
