@@ -84,6 +84,11 @@ export default async function ProfilePage() {
                 <h2 style={{ margin: 0, fontSize: '2rem' }}>{user.name}</h2>
                 <div style={{ background: 'var(--border-color)', padding: '4px 12px', borderRadius: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}>{user.role}</div>
                 <p style={{ margin: '1rem 0 0 0', textAlign: 'center', lineHeight: 1.6, maxWidth: '500px' }}>{user.bio || "No bio added yet."}</p>
+                {user.role === 'PARENT' && (
+                    <div style={{ marginTop: '1rem', width: '100%', maxWidth: '300px' }}>
+                        <ProfileClientActions familyMembers={[{ id: user.id, name: user.name }, ...children.map(c => ({ id: c.id, name: c.name }))]} />
+                    </div>
+                )}
             </div>
 
             <div className="grid">
