@@ -30,7 +30,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const lat = parseFloat(searchParams.get("lat") || "0");
         const lng = parseFloat(searchParams.get("lng") || "0");
-        const radius = parseFloat(searchParams.get("radius") || "50"); // km
+        const radius = parseFloat(searchParams.get("radius") || "48"); // km (frontend converts from miles)
         const category = searchParams.get("category");
         const nearCity = searchParams.get("nearCity");
         const nearState = searchParams.get("nearState");

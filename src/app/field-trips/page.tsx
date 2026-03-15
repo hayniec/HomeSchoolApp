@@ -44,7 +44,7 @@ export default function FieldTripsPage() {
     const [savingId, setSavingId] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<[number, number]>([39.8283, -98.5795]);
     const [hasLocation, setHasLocation] = useState(false);
-    const [radius, setRadius] = useState(50);
+    const [radius, setRadius] = useState(30); // miles
     const [categoryFilter, setCategoryFilter] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [nearCity, setNearCity] = useState("");
@@ -52,6 +52,7 @@ export default function FieldTripsPage() {
     const [exploreCity, setExploreCity] = useState("");
     const [exploreState, setExploreState] = useState("");
     const [exploreLabel, setExploreLabel] = useState("");
+    const [exploreSource, setExploreSource] = useState<"location" | "city" | null>(null);
 
     // Form state
     const [form, setForm] = useState({
@@ -59,6 +60,9 @@ export default function FieldTripsPage() {
         category: "Museum", ageRange: "", cost: "", website: ""
     });
     const [submitting, setSubmitting] = useState(false);
+
+    const milesToKm = (mi: number) => mi * 1.60934;
+    const kmToMiles = (km: number) => km / 1.60934;
 
     const fetchTrips = useCallback(async () => {
         const params = new URLSearchParams();
@@ -68,18 +72,23 @@ export default function FieldTripsPage() {
         }
         if (nearCity) params.set("nearCity", nearCity);
         if (nearState) params.set("nearState", nearState);
-        params.set("radius", radius.toString());
+        params.set("radius", milesToKm(radius).toFixed(1));
         if (categoryFilter) params.set("category", categoryFilter);
 
         const res = await fetch(`/api/field-trips?${params}`);
         const data = await res.json();
-        setTrips(data.trips || []);
+        // Convert distance from km (API) to miles (display)
+        const tripsWithMiles = (data.trips || []).map((t: any) => ({
+            ...t,
+            distance: t.distance != null ? kmToMiles(t.distance) : undefined,
+        }));
+        setTrips(tripsWithMiles);
     }, [hasLocation, userLocation, radius, categoryFilter, nearCity, nearState]);
 
     const fetchNearbyPlaces = useCallback(async (options: { lat?: number; lng?: number; city?: string; state?: string }) => {
         setExploringLoading(true);
         try {
-            const radiusMeters = radius * 1000;
+            const radiusMeters = Math.round(milesToKm(radius) * 1000);
             const params = new URLSearchParams({ radius: radiusMeters.toString() });
             if (options.lat != null && options.lng != null) {
                 params.set("lat", options.lat.toString());
@@ -112,19 +121,21 @@ export default function FieldTripsPage() {
         fetchTrips().then(() => setLoading(false));
     }, [fetchTrips]);
 
-    // Fetch nearby places when explore is toggled on with current location
+    // Only auto-fetch when explore is on AND source is "location" (not city search)
     useEffect(() => {
-        if (exploreNearby && hasLocation) {
+        if (exploreNearby && hasLocation && exploreSource === "location") {
             fetchNearbyPlaces({ lat: userLocation[0], lng: userLocation[1] });
             setExploreLabel("your location");
         } else if (!exploreNearby) {
             setNearbyPlaces([]);
             setExploreLabel("");
+            setExploreSource(null);
         }
-    }, [exploreNearby, hasLocation, userLocation, fetchNearbyPlaces]);
+    }, [exploreNearby, hasLocation, userLocation, exploreSource, fetchNearbyPlaces]);
 
     const exploreByCity = () => {
         if (!exploreCity || !exploreState) return;
+        setExploreSource("city");
         setExploreNearby(true);
         setExploreLabel(`${exploreCity}, ${exploreState}`);
         fetchNearbyPlaces({ city: exploreCity, state: exploreState });
@@ -270,6 +281,7 @@ export default function FieldTripsPage() {
                                 navigator.geolocation?.getCurrentPosition((pos) => {
                                     setUserLocation([pos.coords.latitude, pos.coords.longitude]);
                                     setHasLocation(true);
+                                    setExploreSource("location");
                                     setExploreLabel("your location");
                                     fetchNearbyPlaces({ lat: pos.coords.latitude, lng: pos.coords.longitude });
                                 });
@@ -286,7 +298,7 @@ export default function FieldTripsPage() {
                     )}
                     {!exploringLoading && exploreLabel && filteredNearby.length > 0 && (
                         <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                            Found <strong>{filteredNearby.length}</strong> places near <strong>{exploreLabel}</strong> within {radius} km.
+                            Found <strong>{filteredNearby.length}</strong> places near <strong>{exploreLabel}</strong> within {radius} miles.
                         </p>
                     )}
                     {!exploringLoading && exploreLabel && filteredNearby.length === 0 && (
@@ -319,8 +331,8 @@ export default function FieldTripsPage() {
                             </select>
                         </div>
                         <div>
-                            <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Radius: {radius} km</label>
-                            <input type="range" min="5" max="200" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} style={{ width: "200px" }} />
+                            <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Radius: {radius} mi</label>
+                            <input type="range" min="5" max="125" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} style={{ width: "200px" }} />
                         </div>
                         <div>
                             <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Search near city</label>
@@ -471,7 +483,7 @@ export default function FieldTripsPage() {
                                 </span>
                                 {trip.distance != null && (
                                     <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>
-                                        {trip.distance.toFixed(1)} km
+                                        {trip.distance.toFixed(1)} mi
                                     </span>
                                 )}
                             </div>

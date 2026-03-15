@@ -88,7 +88,7 @@ export default function MapView({ trips, nearbyPlaces = [], center, onTripClick 
             });
 
             const marker = L.marker([trip.latitude, trip.longitude], { icon, zIndexOffset: 100 }).addTo(map);
-            const distText = trip.distance != null ? `<br><b>${trip.distance.toFixed(1)} km away</b>` : "";
+            const distText = trip.distance != null ? `<br><b>${trip.distance.toFixed(1)} mi away</b>` : "";
             marker.bindPopup(`<b>${trip.title}</b><br>${trip.address}, ${trip.city}, ${trip.state}<br><em>${trip.category}</em>${distText}`);
             bounds.extend([trip.latitude, trip.longitude]);
 
