@@ -69,4 +69,4 @@ CREATE TABLE "Resource" (
     "category" text NOT NULL,
     "createdAt" timestamp DEFAULT NOW(),
     "uploadedById" text REFERENCES "User"("id") ON DELETE CASCADE
-);
+);CREATE TABLE " CoopGroup\ (\id\ text PRIMARY KEY DEFAULT uuid_generate_v4()::text, \name\ text NOT NULL, \description\ text, \createdById\ text REFERENCES \User\(\id\) ON DELETE SET NULL, \createdAt\ timestamp DEFAULT NOW());
