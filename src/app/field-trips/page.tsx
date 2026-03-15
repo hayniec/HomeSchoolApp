@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { MapPin, Search, Plus, Filter, ExternalLink } from "lucide-react";
+import { MapPin, Search, Plus, Filter, ExternalLink, Compass, Save } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
@@ -20,13 +20,14 @@ interface Trip {
     cost: string;
     website: string;
     distance?: number;
+    source?: string;
     createdBy?: { id: string; name: string };
 }
 
 const CATEGORIES = ["Museum", "Park", "Science", "Art", "History", "Nature", "Zoo", "Other"];
 
 const US_STATES = [
-    "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+    "AL","AK","AZ","AR","CA","CO","CT","DC","DE","FL","GA","HI","ID","IL","IN","IA",
     "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
     "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
     "VA","WA","WV","WI","WY"
@@ -34,9 +35,13 @@ const US_STATES = [
 
 export default function FieldTripsPage() {
     const [trips, setTrips] = useState<Trip[]>([]);
+    const [nearbyPlaces, setNearbyPlaces] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
+    const [exploreNearby, setExploreNearby] = useState(false);
+    const [exploringLoading, setExploringLoading] = useState(false);
+    const [savingId, setSavingId] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<[number, number]>([39.8283, -98.5795]);
     const [hasLocation, setHasLocation] = useState(false);
     const [radius, setRadius] = useState(50);
@@ -44,6 +49,9 @@ export default function FieldTripsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [nearCity, setNearCity] = useState("");
     const [nearState, setNearState] = useState("");
+    const [exploreCity, setExploreCity] = useState("");
+    const [exploreState, setExploreState] = useState("");
+    const [exploreLabel, setExploreLabel] = useState("");
 
     // Form state
     const [form, setForm] = useState({
@@ -68,6 +76,26 @@ export default function FieldTripsPage() {
         setTrips(data.trips || []);
     }, [hasLocation, userLocation, radius, categoryFilter, nearCity, nearState]);
 
+    const fetchNearbyPlaces = useCallback(async (options: { lat?: number; lng?: number; city?: string; state?: string }) => {
+        setExploringLoading(true);
+        try {
+            const radiusMeters = radius * 1000;
+            const params = new URLSearchParams({ radius: radiusMeters.toString() });
+            if (options.lat != null && options.lng != null) {
+                params.set("lat", options.lat.toString());
+                params.set("lng", options.lng.toString());
+            }
+            if (options.city) params.set("city", options.city);
+            if (options.state) params.set("state", options.state);
+            const res = await fetch(`/api/field-trips/explore?${params}`);
+            const data = await res.json();
+            setNearbyPlaces(data.places || []);
+        } catch {
+            setNearbyPlaces([]);
+        }
+        setExploringLoading(false);
+    }, [radius]);
+
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -83,6 +111,24 @@ export default function FieldTripsPage() {
     useEffect(() => {
         fetchTrips().then(() => setLoading(false));
     }, [fetchTrips]);
+
+    // Fetch nearby places when explore is toggled on with current location
+    useEffect(() => {
+        if (exploreNearby && hasLocation) {
+            fetchNearbyPlaces({ lat: userLocation[0], lng: userLocation[1] });
+            setExploreLabel("your location");
+        } else if (!exploreNearby) {
+            setNearbyPlaces([]);
+            setExploreLabel("");
+        }
+    }, [exploreNearby, hasLocation, userLocation, fetchNearbyPlaces]);
+
+    const exploreByCity = () => {
+        if (!exploreCity || !exploreState) return;
+        setExploreNearby(true);
+        setExploreLabel(`${exploreCity}, ${exploreState}`);
+        fetchNearbyPlaces({ city: exploreCity, state: exploreState });
+    };
 
     const createTrip = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -100,6 +146,31 @@ export default function FieldTripsPage() {
         }
     };
 
+    const saveToOurList = async (place: Trip) => {
+        setSavingId(place.id);
+        const res = await fetch("/api/field-trips", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title: place.title,
+                description: place.description,
+                address: place.address || "See map",
+                city: place.city || "Unknown",
+                state: place.state || "Unknown",
+                category: place.category,
+                ageRange: "",
+                cost: "",
+                website: place.website,
+            }),
+        });
+        setSavingId(null);
+        if (res.ok) {
+            // Remove from nearby list and refresh our trips
+            setNearbyPlaces((prev) => prev.filter((p) => p.id !== place.id));
+            fetchTrips();
+        }
+    };
+
     const searchNearCity = () => {
         setHasLocation(false);
         fetchTrips();
@@ -113,7 +184,15 @@ export default function FieldTripsPage() {
         )
         : trips;
 
+    const filteredNearby = searchQuery
+        ? nearbyPlaces.filter((t) =>
+            t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.category.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        : nearbyPlaces;
+
     const mappableTrips = filteredTrips.filter((t) => t.latitude != null && t.longitude != null);
+    const mappableNearby = filteredNearby.filter((t) => t.latitude != null && t.longitude != null);
 
     if (loading) {
         return (
@@ -127,10 +206,96 @@ export default function FieldTripsPage() {
         <div className="container" style={{ paddingTop: "2rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
                 <h1 className="card-title" style={{ fontSize: "2.5rem", margin: 0 }}>Field Trip Finder</h1>
-                <button className="btn" onClick={() => setShowCreate(!showCreate)} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <Plus size={20} /> Add Trip
-                </button>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                        className={`btn ${exploreNearby ? "" : "btn-outline"}`}
+                        onClick={() => setExploreNearby(!exploreNearby)}
+                        style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                    >
+                        <Compass size={20} /> {exploreNearby ? "Hide Explorer" : "Explore Places"}
+                    </button>
+                    <button className="btn" onClick={() => setShowCreate(!showCreate)} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <Plus size={20} /> Add Trip
+                    </button>
+                </div>
             </div>
+
+            {/* Explore Panel */}
+            {exploreNearby && (
+                <div style={{
+                    background: "linear-gradient(135deg, rgba(69, 183, 209, 0.12), rgba(78, 205, 196, 0.12))",
+                    border: "1px solid rgba(69, 183, 209, 0.3)",
+                    borderRadius: "12px",
+                    padding: "1.25rem",
+                    marginBottom: "1rem",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        <Compass size={18} />
+                        <strong style={{ fontSize: "1rem" }}>Explore Places</strong>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginLeft: "auto" }}>
+                            Gray markers = suggested | Colored = your list
+                        </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "end" }}>
+                        <div style={{ flex: "1 1 160px" }}>
+                            <label style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>City</label>
+                            <input
+                                className="input"
+                                placeholder="e.g. Philadelphia"
+                                value={exploreCity}
+                                onChange={(e) => setExploreCity(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && exploreByCity()}
+                                style={{ marginBottom: 0 }}
+                            />
+                        </div>
+                        <div style={{ flex: "0 1 100px" }}>
+                            <label style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>State</label>
+                            <select
+                                className="input"
+                                value={exploreState}
+                                onChange={(e) => setExploreState(e.target.value)}
+                                style={{ marginBottom: 0 }}
+                            >
+                                <option value="">--</option>
+                                {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <button className="btn" onClick={exploreByCity} disabled={!exploreCity || !exploreState || exploringLoading} style={{ whiteSpace: "nowrap" }}>
+                            <Search size={14} /> Search Area
+                        </button>
+                        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "0.5rem 0" }}>or</span>
+                        <button
+                            className="btn btn-outline"
+                            onClick={() => {
+                                navigator.geolocation?.getCurrentPosition((pos) => {
+                                    setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+                                    setHasLocation(true);
+                                    setExploreLabel("your location");
+                                    fetchNearbyPlaces({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                });
+                            }}
+                            style={{ whiteSpace: "nowrap" }}
+                        >
+                            <MapPin size={14} /> Use My Location
+                        </button>
+                    </div>
+                    {exploringLoading && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            Searching for places...
+                        </p>
+                    )}
+                    {!exploringLoading && exploreLabel && filteredNearby.length > 0 && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            Found <strong>{filteredNearby.length}</strong> places near <strong>{exploreLabel}</strong> within {radius} km.
+                        </p>
+                    )}
+                    {!exploringLoading && exploreLabel && filteredNearby.length === 0 && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            No places found near {exploreLabel}. Try increasing the radius in Filters.
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* Search and Filters */}
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
@@ -223,13 +388,73 @@ export default function FieldTripsPage() {
             )}
 
             {/* Map */}
-            {mappableTrips.length > 0 && (
+            {(mappableTrips.length > 0 || mappableNearby.length > 0) && (
                 <div style={{ marginBottom: "2rem" }}>
-                    <MapView trips={mappableTrips} center={userLocation} />
+                    <MapView trips={mappableTrips} nearbyPlaces={exploreNearby ? mappableNearby : []} center={userLocation} />
                 </div>
             )}
 
-            {/* Trip Listings */}
+            {/* Nearby Places Section */}
+            {exploreNearby && filteredNearby.length > 0 && (
+                <>
+                    <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <Compass size={22} /> Places to Explore {exploreLabel && <>near <em>{exploreLabel}</em></>}
+                    </h2>
+                    <div className="grid" style={{ marginBottom: "2.5rem" }}>
+                        {filteredNearby.map((place) => (
+                            <div key={place.id} className="glass-card" style={{
+                                padding: "1.5rem",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "0.5rem",
+                                borderLeft: "4px solid #aaa",
+                            }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                        <span style={{ background: "#888", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" }}>
+                                            {place.category}
+                                        </span>
+                                        <span style={{ background: "rgba(69,183,209,0.2)", color: "var(--primary)", padding: "4px 10px", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 600 }}>
+                                            OpenTripMap
+                                        </span>
+                                    </div>
+                                </div>
+                                <h3 style={{ margin: "0.25rem 0", fontSize: "1.3rem" }}>{place.title}</h3>
+                                {(place.city || place.state) && (
+                                    <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                                        <MapPin size={14} /> {[place.address, place.city, place.state].filter(Boolean).join(", ")}
+                                    </p>
+                                )}
+                                {place.description && (
+                                    <p style={{ margin: 0, lineHeight: 1.5, fontSize: "0.9rem" }}>
+                                        {place.description.length > 200 ? place.description.slice(0, 200) + "..." : place.description}
+                                    </p>
+                                )}
+                                <div style={{ display: "flex", gap: "0.5rem", marginTop: "auto" }}>
+                                    <button
+                                        className="btn"
+                                        onClick={() => saveToOurList(place)}
+                                        disabled={savingId === place.id}
+                                        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+                                    >
+                                        <Save size={14} /> {savingId === place.id ? "Saving..." : "Add to Our List"}
+                                    </button>
+                                    {place.website && (
+                                        <a href={place.website} target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <ExternalLink size={14} />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {/* Our Trip Listings */}
+            <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>
+                {exploreNearby ? "Our Saved Trips" : "Field Trips"}
+            </h2>
             {filteredTrips.length === 0 ? (
                 <div className="glass-card" style={{ padding: "3rem", textAlign: "center" }}>
                     <MapPin size={48} style={{ color: "var(--text-muted)", marginBottom: "1rem" }} />
