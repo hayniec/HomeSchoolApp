@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { MapPin, Search, Plus, Filter, ExternalLink, Compass, Save } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { MapPin, Search, Plus, Filter, ExternalLink, Compass, Save, Trash2, Clock } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
@@ -21,7 +22,21 @@ interface Trip {
     website: string;
     distance?: number;
     source?: string;
+    createdById?: string;
     createdBy?: { id: string; name: string };
+}
+
+interface DeletionLog {
+    id: string;
+    tripTitle: string;
+    tripCategory: string;
+    tripCity: string;
+    tripState: string;
+    deletedByName: string;
+    deletedByRole: string;
+    createdByName: string;
+    reason: string | null;
+    deletedAt: string;
 }
 
 const CATEGORIES = ["Museum", "Park", "Science", "Art", "History", "Nature", "Zoo", "Other"];
@@ -34,6 +49,11 @@ const US_STATES = [
 ];
 
 export default function FieldTripsPage() {
+    const { data: session } = useSession();
+    const currentUserId = (session?.user as any)?.id;
+    const currentUserRole = (session?.user as any)?.role;
+    const isAdmin = currentUserRole === "ADMIN";
+
     const [trips, setTrips] = useState<Trip[]>([]);
     const [nearbyPlaces, setNearbyPlaces] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
@@ -60,6 +80,12 @@ export default function FieldTripsPage() {
         category: "Museum", ageRange: "", cost: "", website: ""
     });
     const [submitting, setSubmitting] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [deleteReason, setDeleteReason] = useState("");
+    const [showDeletionLog, setShowDeletionLog] = useState(false);
+    const [deletionLogs, setDeletionLogs] = useState<DeletionLog[]>([]);
+    const [deletionLogLoading, setDeletionLogLoading] = useState(false);
 
     const milesToKm = (mi: number) => mi * 1.60934;
     const kmToMiles = (km: number) => km / 1.60934;
@@ -187,6 +213,38 @@ export default function FieldTripsPage() {
         fetchTrips();
     };
 
+    const deleteTrip = async (tripId: string) => {
+        setDeletingId(tripId);
+        const res = await fetch("/api/field-trips", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: tripId, reason: deleteReason || undefined }),
+        });
+        setDeletingId(null);
+        if (res.ok) {
+            setDeleteConfirmId(null);
+            setDeleteReason("");
+            fetchTrips();
+        }
+    };
+
+    const fetchDeletionLogs = async () => {
+        setDeletionLogLoading(true);
+        const res = await fetch("/api/field-trips/deletion-log");
+        const data = await res.json();
+        setDeletionLogs(data.logs || []);
+        setDeletionLogLoading(false);
+    };
+
+    const toggleDeletionLog = () => {
+        if (!showDeletionLog) fetchDeletionLogs();
+        setShowDeletionLog(!showDeletionLog);
+    };
+
+    const canDelete = (trip: Trip) => {
+        return isAdmin || trip.createdById === currentUserId;
+    };
+
     const filteredTrips = searchQuery
         ? trips.filter((t) =>
             t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -217,7 +275,7 @@ export default function FieldTripsPage() {
         <div className="container" style={{ paddingTop: "2rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
                 <h1 className="card-title" style={{ fontSize: "2.5rem", margin: 0 }}>Field Trip Finder</h1>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <button
                         className={`btn ${exploreNearby ? "" : "btn-outline"}`}
                         onClick={() => setExploreNearby(!exploreNearby)}
@@ -227,6 +285,13 @@ export default function FieldTripsPage() {
                     </button>
                     <button className="btn" onClick={() => setShowCreate(!showCreate)} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <Plus size={20} /> Add Trip
+                    </button>
+                    <button
+                        className={`btn ${showDeletionLog ? "" : "btn-outline"}`}
+                        onClick={toggleDeletionLog}
+                        style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                    >
+                        <Clock size={20} /> Deletion Log
                     </button>
                 </div>
             </div>
@@ -481,12 +546,59 @@ export default function FieldTripsPage() {
                                 <span style={{ background: "var(--primary)", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold" }}>
                                     {trip.category}
                                 </span>
-                                {trip.distance != null && (
-                                    <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>
-                                        {trip.distance.toFixed(1)} mi
-                                    </span>
-                                )}
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    {trip.distance != null && (
+                                        <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>
+                                            {trip.distance.toFixed(1)} mi
+                                        </span>
+                                    )}
+                                    {canDelete(trip) && (
+                                        <button
+                                            onClick={() => setDeleteConfirmId(deleteConfirmId === trip.id ? null : trip.id)}
+                                            style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: "var(--text-muted)", borderRadius: "4px" }}
+                                            title="Delete trip"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
+                            {deleteConfirmId === trip.id && (
+                                <div style={{
+                                    background: "rgba(220, 38, 38, 0.08)",
+                                    border: "1px solid rgba(220, 38, 38, 0.3)",
+                                    borderRadius: "8px",
+                                    padding: "0.75rem",
+                                }}>
+                                    <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: "#dc2626" }}>
+                                        Delete this trip?
+                                    </p>
+                                    <input
+                                        className="input"
+                                        placeholder="Reason (optional)"
+                                        value={deleteReason}
+                                        onChange={(e) => setDeleteReason(e.target.value)}
+                                        style={{ marginBottom: "0.5rem", fontSize: "0.85rem" }}
+                                    />
+                                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                                        <button
+                                            className="btn"
+                                            onClick={() => deleteTrip(trip.id)}
+                                            disabled={deletingId === trip.id}
+                                            style={{ background: "#dc2626", fontSize: "0.8rem", padding: "0.4rem 0.75rem" }}
+                                        >
+                                            {deletingId === trip.id ? "Deleting..." : "Confirm Delete"}
+                                        </button>
+                                        <button
+                                            className="btn btn-outline"
+                                            onClick={() => { setDeleteConfirmId(null); setDeleteReason(""); }}
+                                            style={{ fontSize: "0.8rem", padding: "0.4rem 0.75rem" }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             <h3 style={{ margin: "0.25rem 0", fontSize: "1.3rem" }}>{trip.title}</h3>
                             <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
                                 <MapPin size={14} /> {trip.address}, {trip.city}, {trip.state}
@@ -503,6 +615,59 @@ export default function FieldTripsPage() {
                             )}
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Deletion History */}
+            {showDeletionLog && (
+                <div style={{ marginTop: "2rem" }}>
+                    <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <Clock size={22} /> My Deletion History
+                    </h2>
+                    {deletionLogLoading ? (
+                        <p style={{ color: "var(--text-muted)" }}>Loading...</p>
+                    ) : deletionLogs.length === 0 ? (
+                        <div className="glass-card" style={{ padding: "2rem", textAlign: "center" }}>
+                            <p style={{ color: "var(--text-muted)" }}>No deletions recorded yet.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                            {deletionLogs.map((log) => (
+                                <div key={log.id} className="glass-card" style={{
+                                    padding: "1rem 1.25rem",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                    gap: "0.5rem",
+                                    borderLeft: "4px solid #dc2626",
+                                }}>
+                                    <div>
+                                        <strong>{log.tripTitle}</strong>
+                                        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginLeft: "0.5rem" }}>
+                                            {log.tripCategory} — {log.tripCity}, {log.tripState}
+                                        </span>
+                                        {log.reason && (
+                                            <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                                                Reason: {log.reason}
+                                            </p>
+                                        )}
+                                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                                            Deleted by {log.deletedByName || "Unknown"}
+                                            {log.deletedByRole === "ADMIN" && <span style={{ color: "#dc2626", fontWeight: 600 }}> (Admin)</span>}
+                                            {log.createdByName && <> — originally added by {log.createdByName}</>}
+                                        </p>
+                                    </div>
+                                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                                        {new Date(log.deletedAt).toLocaleDateString("en-US", {
+                                            month: "short", day: "numeric", year: "numeric",
+                                            hour: "numeric", minute: "2-digit"
+                                        })}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

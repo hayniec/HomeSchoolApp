@@ -1,7 +1,7 @@
 "use client";
 
-import { MessageSquare, BookOpen, User, LogOut, Home, Users, Rss, MapPin } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { MessageSquare, BookOpen, User, LogOut, Home, Users, Rss, MapPin, Shield } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -14,6 +14,8 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, closeSidebar, isMobile }: SidebarProps) {
     const pathname = usePathname();
+    const { data: session } = useSession();
+    const isAdmin = (session?.user as any)?.role === "ADMIN";
 
     const navItems = [
         { label: "Dashboard", href: "/", icon: <Home size={20} /> },
@@ -23,6 +25,7 @@ export function Sidebar({ isOpen, closeSidebar, isMobile }: SidebarProps) {
         { label: "Community Forum", href: "/forum", icon: <MessageSquare size={20} /> },
         { label: "Resources", href: "/resources", icon: <BookOpen size={20} /> },
         { label: "My Profile", href: "/profile", icon: <User size={20} /> },
+        ...(isAdmin ? [{ label: "Admin", href: "/admin", icon: <Shield size={20} /> }] : []),
     ];
 
     return (

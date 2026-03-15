@@ -136,3 +136,19 @@ CREATE TABLE "FieldTrip" (
     "createdById" text REFERENCES "User"("id") ON DELETE SET NULL,
     "createdAt" timestamp DEFAULT NOW()
 );
+
+-- Field Trip Deletion Log
+CREATE TABLE "FieldTripDeletionLog" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "tripTitle" text NOT NULL,
+    "tripCategory" text NOT NULL,
+    "tripCity" text NOT NULL,
+    "tripState" text NOT NULL,
+    "deletedById" text REFERENCES "User"("id") ON DELETE SET NULL,
+    "deletedByName" text,
+    "deletedByRole" text,
+    "createdById" text,
+    "createdByName" text,
+    "reason" text,
+    "deletedAt" timestamp DEFAULT NOW()
+);
