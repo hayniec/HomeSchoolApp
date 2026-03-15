@@ -13,6 +13,18 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): 
     return R * c;
 }
 
+async function geocodeAddress(address: string, city: string, state: string): Promise<{ lat: number; lon: number } | null> {
+    const query = encodeURIComponent(`${address}, ${city}, ${state}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
+        headers: { "User-Agent": "HomeschoolHub/1.0" }
+    });
+    const data = await res.json();
+    if (data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+    return null;
+}
+
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -20,6 +32,8 @@ export async function GET(req: Request) {
         const lng = parseFloat(searchParams.get("lng") || "0");
         const radius = parseFloat(searchParams.get("radius") || "50"); // km
         const category = searchParams.get("category");
+        const nearCity = searchParams.get("nearCity");
+        const nearState = searchParams.get("nearState");
 
         let query = supabase
             .from("FieldTrip")
@@ -38,12 +52,24 @@ export async function GET(req: Request) {
 
         let results = trips || [];
 
-        // Filter by distance if coordinates provided
-        if (lat !== 0 || lng !== 0) {
+        // If searching near a city/state, geocode it first
+        let searchLat = lat;
+        let searchLng = lng;
+        if (nearCity && nearState) {
+            const geo = await geocodeAddress("", nearCity, nearState);
+            if (geo) {
+                searchLat = geo.lat;
+                searchLng = geo.lon;
+            }
+        }
+
+        // Filter by distance if coordinates available
+        if (searchLat !== 0 || searchLng !== 0) {
             results = results
+                .filter((trip: any) => trip.latitude != null && trip.longitude != null)
                 .map((trip: any) => ({
                     ...trip,
-                    distance: getDistanceKm(lat, lng, trip.latitude, trip.longitude)
+                    distance: getDistanceKm(searchLat, searchLng, trip.latitude, trip.longitude)
                 }))
                 .filter((trip: any) => trip.distance <= radius)
                 .sort((a: any, b: any) => a.distance - b.distance);
@@ -64,19 +90,24 @@ export async function POST(req: Request) {
         const { data: user } = await supabase.from("User").select("id").eq("email", email).single();
         if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-        const { title, description, location, latitude, longitude, category, ageRange, cost, website } = await req.json();
-        if (!title || !location || latitude == null || longitude == null || !category) {
-            return NextResponse.json({ error: "title, location, latitude, longitude, and category are required" }, { status: 400 });
+        const { title, description, address, city, state, category, ageRange, cost, website } = await req.json();
+        if (!title || !address || !city || !state || !category) {
+            return NextResponse.json({ error: "title, address, city, state, and category are required" }, { status: 400 });
         }
+
+        // Geocode the address automatically
+        const geo = await geocodeAddress(address, city, state);
 
         const { data: trip, error } = await supabase
             .from("FieldTrip")
             .insert([{
                 title,
                 description,
-                location,
-                latitude,
-                longitude,
+                address,
+                city,
+                state,
+                latitude: geo?.lat || null,
+                longitude: geo?.lon || null,
                 category,
                 ageRange,
                 cost,
