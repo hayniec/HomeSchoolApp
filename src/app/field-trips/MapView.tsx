@@ -14,10 +14,12 @@ interface Trip {
     longitude: number;
     category: string;
     distance?: number;
+    source?: string;
 }
 
 interface MapViewProps {
     trips: Trip[];
+    nearbyPlaces?: Trip[];
     center: [number, number];
     onTripClick?: (trip: Trip) => void;
 }
@@ -33,7 +35,7 @@ const CATEGORY_COLORS: Record<string, string> = {
     Other: "#636e72",
 };
 
-export default function MapView({ trips, center, onTripClick }: MapViewProps) {
+export default function MapView({ trips, nearbyPlaces = [], center, onTripClick }: MapViewProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -54,6 +56,26 @@ export default function MapView({ trips, center, onTripClick }: MapViewProps) {
 
         const bounds = L.latLngBounds([]);
 
+        // Render nearby places first (gray, behind our trips)
+        nearbyPlaces.forEach((place) => {
+            if (place.latitude == null || place.longitude == null) return;
+
+            const icon = L.divIcon({
+                className: "",
+                html: `<div style="background:#aaa;width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:10px;opacity:0.85;">?</div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11],
+            });
+
+            const marker = L.marker([place.latitude, place.longitude], { icon, zIndexOffset: -100 }).addTo(map);
+            const locationParts = [place.address, place.city, place.state].filter(Boolean).join(", ");
+            marker.bindPopup(
+                `<b>${place.title}</b>${locationParts ? `<br>${locationParts}` : ""}<br><em>${place.category}</em><br><span style="color:#888;font-size:11px;">From OpenTripMap</span>`
+            );
+            bounds.extend([place.latitude, place.longitude]);
+        });
+
+        // Render our saved trips (colored, on top)
         trips.forEach((trip) => {
             if (trip.latitude == null || trip.longitude == null) return;
 
@@ -65,7 +87,7 @@ export default function MapView({ trips, center, onTripClick }: MapViewProps) {
                 iconAnchor: [14, 14],
             });
 
-            const marker = L.marker([trip.latitude, trip.longitude], { icon }).addTo(map);
+            const marker = L.marker([trip.latitude, trip.longitude], { icon, zIndexOffset: 100 }).addTo(map);
             const distText = trip.distance != null ? `<br><b>${trip.distance.toFixed(1)} km away</b>` : "";
             marker.bindPopup(`<b>${trip.title}</b><br>${trip.address}, ${trip.city}, ${trip.state}<br><em>${trip.category}</em>${distText}`);
             bounds.extend([trip.latitude, trip.longitude]);
@@ -85,7 +107,7 @@ export default function MapView({ trips, center, onTripClick }: MapViewProps) {
                 mapInstanceRef.current = null;
             }
         };
-    }, [trips, center, onTripClick]);
+    }, [trips, nearbyPlaces, center, onTripClick]);
 
     return <div ref={mapRef} style={{ height: "400px", width: "100%", borderRadius: "16px", overflow: "hidden", border: "2px solid var(--border-color)" }} />;
 }
