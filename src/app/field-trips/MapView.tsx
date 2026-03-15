@@ -7,8 +7,9 @@ import "leaflet/dist/leaflet.css";
 interface Trip {
     id: string;
     title: string;
-    description: string;
-    location: string;
+    address: string;
+    city: string;
+    state: string;
     latitude: number;
     longitude: number;
     category: string;
@@ -39,7 +40,6 @@ export default function MapView({ trips, center, onTripClick }: MapViewProps) {
     useEffect(() => {
         if (!mapRef.current) return;
 
-        // Clean up existing map
         if (mapInstanceRef.current) {
             mapInstanceRef.current.remove();
             mapInstanceRef.current = null;
@@ -52,7 +52,11 @@ export default function MapView({ trips, center, onTripClick }: MapViewProps) {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(map);
 
+        const bounds = L.latLngBounds([]);
+
         trips.forEach((trip) => {
+            if (trip.latitude == null || trip.longitude == null) return;
+
             const color = CATEGORY_COLORS[trip.category] || CATEGORY_COLORS.Other;
             const icon = L.divIcon({
                 className: "",
@@ -63,11 +67,17 @@ export default function MapView({ trips, center, onTripClick }: MapViewProps) {
 
             const marker = L.marker([trip.latitude, trip.longitude], { icon }).addTo(map);
             const distText = trip.distance != null ? `<br><b>${trip.distance.toFixed(1)} km away</b>` : "";
-            marker.bindPopup(`<b>${trip.title}</b><br>${trip.location}<br><em>${trip.category}</em>${distText}`);
+            marker.bindPopup(`<b>${trip.title}</b><br>${trip.address}, ${trip.city}, ${trip.state}<br><em>${trip.category}</em>${distText}`);
+            bounds.extend([trip.latitude, trip.longitude]);
+
             if (onTripClick) {
                 marker.on("click", () => onTripClick(trip));
             }
         });
+
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
 
         return () => {
             if (mapInstanceRef.current) {

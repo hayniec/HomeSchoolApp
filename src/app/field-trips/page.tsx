@@ -10,7 +10,9 @@ interface Trip {
     id: string;
     title: string;
     description: string;
-    location: string;
+    address: string;
+    city: string;
+    state: string;
     latitude: number;
     longitude: number;
     category: string;
@@ -23,46 +25,57 @@ interface Trip {
 
 const CATEGORIES = ["Museum", "Park", "Science", "Art", "History", "Nature", "Zoo", "Other"];
 
+const US_STATES = [
+    "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+    "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+    "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+    "VA","WA","WV","WI","WY"
+];
+
 export default function FieldTripsPage() {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
-    const [userLocation, setUserLocation] = useState<[number, number]>([39.8283, -98.5795]); // center of US
+    const [userLocation, setUserLocation] = useState<[number, number]>([39.8283, -98.5795]);
     const [hasLocation, setHasLocation] = useState(false);
     const [radius, setRadius] = useState(50);
     const [categoryFilter, setCategoryFilter] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const [nearCity, setNearCity] = useState("");
+    const [nearState, setNearState] = useState("");
 
     // Form state
     const [form, setForm] = useState({
-        title: "", description: "", location: "", latitude: "", longitude: "",
+        title: "", description: "", address: "", city: "", state: "",
         category: "Museum", ageRange: "", cost: "", website: ""
     });
+    const [submitting, setSubmitting] = useState(false);
 
     const fetchTrips = useCallback(async () => {
         const params = new URLSearchParams();
         if (hasLocation) {
             params.set("lat", userLocation[0].toString());
             params.set("lng", userLocation[1].toString());
-            params.set("radius", radius.toString());
         }
+        if (nearCity) params.set("nearCity", nearCity);
+        if (nearState) params.set("nearState", nearState);
+        params.set("radius", radius.toString());
         if (categoryFilter) params.set("category", categoryFilter);
 
         const res = await fetch(`/api/field-trips?${params}`);
         const data = await res.json();
         setTrips(data.trips || []);
-    }, [hasLocation, userLocation, radius, categoryFilter]);
+    }, [hasLocation, userLocation, radius, categoryFilter, nearCity, nearState]);
 
     useEffect(() => {
-        // Try to get user location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     setUserLocation([pos.coords.latitude, pos.coords.longitude]);
                     setHasLocation(true);
                 },
-                () => {} // Silently fail - will use default center
+                () => {}
             );
         }
     }, []);
@@ -73,28 +86,34 @@ export default function FieldTripsPage() {
 
     const createTrip = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitting(true);
         const res = await fetch("/api/field-trips", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                ...form,
-                latitude: parseFloat(form.latitude),
-                longitude: parseFloat(form.longitude),
-            }),
+            body: JSON.stringify(form),
         });
+        setSubmitting(false);
         if (res.ok) {
-            setForm({ title: "", description: "", location: "", latitude: "", longitude: "", category: "Museum", ageRange: "", cost: "", website: "" });
+            setForm({ title: "", description: "", address: "", city: "", state: "", category: "Museum", ageRange: "", cost: "", website: "" });
             setShowCreate(false);
             fetchTrips();
         }
     };
 
+    const searchNearCity = () => {
+        setHasLocation(false);
+        fetchTrips();
+    };
+
     const filteredTrips = searchQuery
         ? trips.filter((t) =>
             t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.location.toLowerCase().includes(searchQuery.toLowerCase())
+            t.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.city.toLowerCase().includes(searchQuery.toLowerCase())
         )
         : trips;
+
+    const mappableTrips = filteredTrips.filter((t) => t.latitude != null && t.longitude != null);
 
     if (loading) {
         return (
@@ -138,11 +157,24 @@ export default function FieldTripsPage() {
                             <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Radius: {radius} km</label>
                             <input type="range" min="5" max="200" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} style={{ width: "200px" }} />
                         </div>
+                        <div>
+                            <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>Search near city</label>
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <input className="input" placeholder="City" value={nearCity} onChange={(e) => setNearCity(e.target.value)} style={{ marginBottom: 0, width: "140px" }} />
+                                <select className="input" value={nearState} onChange={(e) => setNearState(e.target.value)} style={{ marginBottom: 0, width: "80px" }}>
+                                    <option value="">State</option>
+                                    {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <button className="btn" onClick={searchNearCity} style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}>Go</button>
+                            </div>
+                        </div>
                         {!hasLocation && (
                             <button className="btn btn-outline" onClick={() => {
                                 navigator.geolocation?.getCurrentPosition((pos) => {
                                     setUserLocation([pos.coords.latitude, pos.coords.longitude]);
                                     setHasLocation(true);
+                                    setNearCity("");
+                                    setNearState("");
                                 });
                             }} style={{ fontSize: "0.85rem" }}>
                                 <MapPin size={14} /> Use My Location
@@ -159,10 +191,13 @@ export default function FieldTripsPage() {
                     <form onSubmit={createTrip}>
                         <input className="input" placeholder="Trip name" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
                         <textarea className="input" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} style={{ resize: "vertical" }} />
-                        <input className="input" placeholder="Location (e.g. 123 Main St, Springfield)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} required />
+                        <input className="input" placeholder="Street address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
                         <div style={{ display: "flex", gap: "0.5rem" }}>
-                            <input className="input" type="number" step="any" placeholder="Latitude" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} required style={{ flex: 1 }} />
-                            <input className="input" type="number" step="any" placeholder="Longitude" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} required style={{ flex: 1 }} />
+                            <input className="input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required style={{ flex: 2 }} />
+                            <select className="input" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} required style={{ flex: 1 }}>
+                                <option value="">State</option>
+                                {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem" }}>
                             <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required style={{ flex: 1 }}>
@@ -175,17 +210,22 @@ export default function FieldTripsPage() {
                             <input className="input" placeholder="Website URL" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} style={{ flex: 1 }} />
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem" }}>
-                            <button type="submit" className="btn">Add Trip</button>
+                            <button type="submit" className="btn" disabled={submitting}>
+                                {submitting ? "Adding..." : "Add Trip"}
+                            </button>
                             <button type="button" className="btn btn-outline" onClick={() => setShowCreate(false)}>Cancel</button>
                         </div>
+                        <p style={{ margin: "0.75rem 0 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                            The address will be automatically converted to map coordinates.
+                        </p>
                     </form>
                 </div>
             )}
 
             {/* Map */}
-            {filteredTrips.length > 0 && (
+            {mappableTrips.length > 0 && (
                 <div style={{ marginBottom: "2rem" }}>
-                    <MapView trips={filteredTrips} center={userLocation} />
+                    <MapView trips={mappableTrips} center={userLocation} />
                 </div>
             )}
 
@@ -212,7 +252,7 @@ export default function FieldTripsPage() {
                             </div>
                             <h3 style={{ margin: "0.25rem 0", fontSize: "1.3rem" }}>{trip.title}</h3>
                             <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                                <MapPin size={14} /> {trip.location}
+                                <MapPin size={14} /> {trip.address}, {trip.city}, {trip.state}
                             </p>
                             {trip.description && <p style={{ margin: 0, lineHeight: 1.5 }}>{trip.description}</p>}
                             <div style={{ display: "flex", gap: "1rem", fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
