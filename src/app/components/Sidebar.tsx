@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Calendar, BookOpen, User, LogOut, Home } from "lucide-react";
+import { MessageSquare, BookOpen, User, LogOut, Home, Users, Rss, MapPin } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,6 +17,9 @@ export function Sidebar({ isOpen, closeSidebar, isMobile }: SidebarProps) {
 
     const navItems = [
         { label: "Dashboard", href: "/", icon: <Home size={20} /> },
+        { label: "Co-op Groups", href: "/groups", icon: <Users size={20} /> },
+        { label: "Activity Feed", href: "/feed", icon: <Rss size={20} /> },
+        { label: "Field Trips", href: "/field-trips", icon: <MapPin size={20} /> },
         { label: "Community Forum", href: "/forum", icon: <MessageSquare size={20} /> },
         { label: "Resources", href: "/resources", icon: <BookOpen size={20} /> },
         { label: "My Profile", href: "/profile", icon: <User size={20} /> },

@@ -69,4 +69,68 @@ CREATE TABLE "Resource" (
     "category" text NOT NULL,
     "createdAt" timestamp DEFAULT NOW(),
     "uploadedById" text REFERENCES "User"("id") ON DELETE CASCADE
-);CREATE TABLE " CoopGroup\ (\id\ text PRIMARY KEY DEFAULT uuid_generate_v4()::text, \name\ text NOT NULL, \description\ text, \createdById\ text REFERENCES \User\(\id\) ON DELETE SET NULL, \createdAt\ timestamp DEFAULT NOW());
+);
+
+-- Co-op Groups
+CREATE TABLE "CoopGroup" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "name" text NOT NULL,
+    "description" text,
+    "createdById" text REFERENCES "User"("id") ON DELETE SET NULL,
+    "createdAt" timestamp DEFAULT NOW()
+);
+
+CREATE TABLE "CoopGroupMember" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "groupId" text REFERENCES "CoopGroup"("id") ON DELETE CASCADE,
+    "userId" text REFERENCES "User"("id") ON DELETE CASCADE,
+    "role" text DEFAULT 'MEMBER',
+    "joinedAt" timestamp DEFAULT NOW(),
+    UNIQUE("groupId", "userId")
+);
+
+CREATE TABLE "CoopGroupInvitation" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "groupId" text REFERENCES "CoopGroup"("id") ON DELETE CASCADE,
+    "invitedEmail" text NOT NULL,
+    "invitedById" text REFERENCES "User"("id") ON DELETE SET NULL,
+    "status" text DEFAULT 'PENDING',
+    "createdAt" timestamp DEFAULT NOW()
+);
+
+-- Activity Feed
+CREATE TABLE "ActivityFeedItem" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "type" text NOT NULL,
+    "title" text NOT NULL,
+    "content" text,
+    "authorId" text REFERENCES "User"("id") ON DELETE CASCADE,
+    "groupId" text REFERENCES "CoopGroup"("id") ON DELETE CASCADE,
+    "eventDate" timestamp,
+    "createdAt" timestamp DEFAULT NOW()
+);
+
+CREATE TABLE "EventRsvp" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "feedItemId" text REFERENCES "ActivityFeedItem"("id") ON DELETE CASCADE,
+    "userId" text REFERENCES "User"("id") ON DELETE CASCADE,
+    "status" text DEFAULT 'GOING',
+    "createdAt" timestamp DEFAULT NOW(),
+    UNIQUE("feedItemId", "userId")
+);
+
+-- Field Trips
+CREATE TABLE "FieldTrip" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "title" text NOT NULL,
+    "description" text,
+    "location" text NOT NULL,
+    "latitude" double precision NOT NULL,
+    "longitude" double precision NOT NULL,
+    "category" text NOT NULL,
+    "ageRange" text,
+    "cost" text,
+    "website" text,
+    "createdById" text REFERENCES "User"("id") ON DELETE SET NULL,
+    "createdAt" timestamp DEFAULT NOW()
+);
