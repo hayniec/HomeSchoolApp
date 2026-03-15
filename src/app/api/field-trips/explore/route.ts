@@ -35,16 +35,39 @@ function mapKindsToCategory(kinds: string): string {
     return "Other";
 }
 
+async function geocode(city: string, state: string): Promise<{ lat: number; lon: number } | null> {
+    const query = encodeURIComponent(`${city}, ${state}, USA`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
+        headers: { "User-Agent": "HomeschoolHub/1.0" },
+    });
+    const data = await res.json();
+    if (data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+    return null;
+}
+
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const lat = searchParams.get("lat");
-        const lng = searchParams.get("lng");
+        let lat = searchParams.get("lat");
+        let lng = searchParams.get("lng");
+        const city = searchParams.get("city");
+        const state = searchParams.get("state");
         const radiusMeters = parseInt(searchParams.get("radius") || "50000"); // default 50km in meters
         const kinds = searchParams.get("kinds") || "interesting_places";
 
+        // If city/state provided, geocode to get coordinates
+        if (city && state && (!lat || !lng)) {
+            const geo = await geocode(city, state);
+            if (geo) {
+                lat = geo.lat.toString();
+                lng = geo.lon.toString();
+            }
+        }
+
         if (!lat || !lng) {
-            return NextResponse.json({ error: "lat and lng are required" }, { status: 400 });
+            return NextResponse.json({ error: "lat/lng or city/state are required" }, { status: 400 });
         }
 
         // OpenTripMap radius endpoint — returns places within a radius of a point

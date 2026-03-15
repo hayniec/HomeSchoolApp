@@ -49,6 +49,9 @@ export default function FieldTripsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [nearCity, setNearCity] = useState("");
     const [nearState, setNearState] = useState("");
+    const [exploreCity, setExploreCity] = useState("");
+    const [exploreState, setExploreState] = useState("");
+    const [exploreLabel, setExploreLabel] = useState("");
 
     // Form state
     const [form, setForm] = useState({
@@ -73,11 +76,18 @@ export default function FieldTripsPage() {
         setTrips(data.trips || []);
     }, [hasLocation, userLocation, radius, categoryFilter, nearCity, nearState]);
 
-    const fetchNearbyPlaces = useCallback(async (lat: number, lng: number) => {
+    const fetchNearbyPlaces = useCallback(async (options: { lat?: number; lng?: number; city?: string; state?: string }) => {
         setExploringLoading(true);
         try {
             const radiusMeters = radius * 1000;
-            const res = await fetch(`/api/field-trips/explore?lat=${lat}&lng=${lng}&radius=${radiusMeters}`);
+            const params = new URLSearchParams({ radius: radiusMeters.toString() });
+            if (options.lat != null && options.lng != null) {
+                params.set("lat", options.lat.toString());
+                params.set("lng", options.lng.toString());
+            }
+            if (options.city) params.set("city", options.city);
+            if (options.state) params.set("state", options.state);
+            const res = await fetch(`/api/field-trips/explore?${params}`);
             const data = await res.json();
             setNearbyPlaces(data.places || []);
         } catch {
@@ -102,14 +112,23 @@ export default function FieldTripsPage() {
         fetchTrips().then(() => setLoading(false));
     }, [fetchTrips]);
 
-    // Fetch nearby places when explore is toggled on
+    // Fetch nearby places when explore is toggled on with current location
     useEffect(() => {
-        if (exploreNearby && (hasLocation || (userLocation[0] !== 39.8283))) {
-            fetchNearbyPlaces(userLocation[0], userLocation[1]);
+        if (exploreNearby && hasLocation) {
+            fetchNearbyPlaces({ lat: userLocation[0], lng: userLocation[1] });
+            setExploreLabel("your location");
         } else if (!exploreNearby) {
             setNearbyPlaces([]);
+            setExploreLabel("");
         }
-    }, [exploreNearby, userLocation, hasLocation, fetchNearbyPlaces]);
+    }, [exploreNearby, hasLocation, userLocation, fetchNearbyPlaces]);
+
+    const exploreByCity = () => {
+        if (!exploreCity || !exploreState) return;
+        setExploreNearby(true);
+        setExploreLabel(`${exploreCity}, ${exploreState}`);
+        fetchNearbyPlaces({ city: exploreCity, state: exploreState });
+    };
 
     const createTrip = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -190,20 +209,10 @@ export default function FieldTripsPage() {
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
                         className={`btn ${exploreNearby ? "" : "btn-outline"}`}
-                        onClick={() => {
-                            if (!hasLocation && !exploreNearby) {
-                                navigator.geolocation?.getCurrentPosition((pos) => {
-                                    setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-                                    setHasLocation(true);
-                                    setExploreNearby(true);
-                                });
-                            } else {
-                                setExploreNearby(!exploreNearby);
-                            }
-                        }}
+                        onClick={() => setExploreNearby(!exploreNearby)}
                         style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
                     >
-                        <Compass size={20} /> {exploreNearby ? "Hide Nearby" : "Explore Nearby"}
+                        <Compass size={20} /> {exploreNearby ? "Hide Explorer" : "Explore Places"}
                     </button>
                     <button className="btn" onClick={() => setShowCreate(!showCreate)} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <Plus size={20} /> Add Trip
@@ -211,30 +220,80 @@ export default function FieldTripsPage() {
                 </div>
             </div>
 
-            {/* Explore Nearby Banner */}
+            {/* Explore Panel */}
             {exploreNearby && (
                 <div style={{
-                    background: "linear-gradient(135deg, rgba(69, 183, 209, 0.15), rgba(78, 205, 196, 0.15))",
+                    background: "linear-gradient(135deg, rgba(69, 183, 209, 0.12), rgba(78, 205, 196, 0.12))",
                     border: "1px solid rgba(69, 183, 209, 0.3)",
                     borderRadius: "12px",
-                    padding: "0.75rem 1.25rem",
+                    padding: "1.25rem",
                     marginBottom: "1rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: "0.5rem"
                 }}>
-                    <span style={{ fontSize: "0.9rem" }}>
-                        <Compass size={16} style={{ verticalAlign: "middle", marginRight: "0.5rem" }} />
-                        <strong>Explore Mode:</strong> Showing nearby places from OpenTripMap.
-                        {exploringLoading && " Loading..."}
-                        {!exploringLoading && filteredNearby.length > 0 && ` Found ${filteredNearby.length} places nearby.`}
-                        {!exploringLoading && filteredNearby.length === 0 && !hasLocation && " Enable location to discover places."}
-                    </span>
-                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        Gray markers = suggested | Colored markers = your list
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        <Compass size={18} />
+                        <strong style={{ fontSize: "1rem" }}>Explore Places</strong>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginLeft: "auto" }}>
+                            Gray markers = suggested | Colored = your list
+                        </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "end" }}>
+                        <div style={{ flex: "1 1 160px" }}>
+                            <label style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>City</label>
+                            <input
+                                className="input"
+                                placeholder="e.g. Philadelphia"
+                                value={exploreCity}
+                                onChange={(e) => setExploreCity(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && exploreByCity()}
+                                style={{ marginBottom: 0 }}
+                            />
+                        </div>
+                        <div style={{ flex: "0 1 100px" }}>
+                            <label style={{ fontSize: "0.8rem", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>State</label>
+                            <select
+                                className="input"
+                                value={exploreState}
+                                onChange={(e) => setExploreState(e.target.value)}
+                                style={{ marginBottom: 0 }}
+                            >
+                                <option value="">--</option>
+                                {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <button className="btn" onClick={exploreByCity} disabled={!exploreCity || !exploreState || exploringLoading} style={{ whiteSpace: "nowrap" }}>
+                            <Search size={14} /> Search Area
+                        </button>
+                        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "0.5rem 0" }}>or</span>
+                        <button
+                            className="btn btn-outline"
+                            onClick={() => {
+                                navigator.geolocation?.getCurrentPosition((pos) => {
+                                    setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+                                    setHasLocation(true);
+                                    setExploreLabel("your location");
+                                    fetchNearbyPlaces({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                });
+                            }}
+                            style={{ whiteSpace: "nowrap" }}
+                        >
+                            <MapPin size={14} /> Use My Location
+                        </button>
+                    </div>
+                    {exploringLoading && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            Searching for places...
+                        </p>
+                    )}
+                    {!exploringLoading && exploreLabel && filteredNearby.length > 0 && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            Found <strong>{filteredNearby.length}</strong> places near <strong>{exploreLabel}</strong> within {radius} km.
+                        </p>
+                    )}
+                    {!exploringLoading && exploreLabel && filteredNearby.length === 0 && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            No places found near {exploreLabel}. Try increasing the radius in Filters.
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -339,7 +398,7 @@ export default function FieldTripsPage() {
             {exploreNearby && filteredNearby.length > 0 && (
                 <>
                     <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <Compass size={22} /> Nearby Places to Explore
+                        <Compass size={22} /> Places to Explore {exploreLabel && <>near <em>{exploreLabel}</em></>}
                     </h2>
                     <div className="grid" style={{ marginBottom: "2.5rem" }}>
                         {filteredNearby.map((place) => (
