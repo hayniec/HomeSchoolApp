@@ -125,3 +125,54 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
+
+export async function DELETE(req: Request) {
+    try {
+        const session = await getServerSession();
+        const email = session?.user?.email ?? "admin@admin.com";
+
+        const { data: user } = await supabase.from("User").select("id, name, role").eq("email", email).single();
+        if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+        const { id, reason } = await req.json();
+        if (!id) return NextResponse.json({ error: "Trip id is required" }, { status: 400 });
+
+        // Fetch the trip with creator info
+        const { data: trip } = await supabase
+            .from("FieldTrip")
+            .select("*, createdBy:User!createdById(id, name)")
+            .eq("id", id)
+            .single();
+        if (!trip) return NextResponse.json({ error: "Trip not found" }, { status: 404 });
+
+        // Only the creator or an ADMIN can delete
+        const isCreator = trip.createdById === user.id;
+        const isAdmin = user.role === "ADMIN";
+        if (!isCreator && !isAdmin) {
+            return NextResponse.json({ error: "Not authorized to delete this trip" }, { status: 403 });
+        }
+
+        // Log the deletion before deleting
+        await supabase.from("FieldTripDeletionLog").insert([{
+            tripTitle: trip.title,
+            tripCategory: trip.category,
+            tripCity: trip.city,
+            tripState: trip.state,
+            deletedById: user.id,
+            deletedByName: user.name,
+            deletedByRole: user.role,
+            createdById: trip.createdById,
+            createdByName: trip.createdBy?.name || null,
+            reason: reason || null,
+        }]);
+
+        // Delete the trip
+        const { error } = await supabase.from("FieldTrip").delete().eq("id", id);
+        if (error) throw error;
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Field Trip Deletion Error:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
+}
