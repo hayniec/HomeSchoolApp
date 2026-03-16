@@ -152,3 +152,28 @@ CREATE TABLE "FieldTripDeletionLog" (
     "reason" text,
     "deletedAt" timestamp DEFAULT NOW()
 );
+
+-- Curriculum Suggestions
+CREATE TABLE "CurriculumSuggestion" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "name" text NOT NULL,
+    "subject" text NOT NULL,
+    "gradeLevel" text,
+    "description" text,
+    "pros" text,
+    "cons" text,
+    "cost" text,
+    "rating" integer,
+    "format" text,
+    "website" text,
+    "authorId" text REFERENCES "User"("id") ON DELETE CASCADE,
+    "createdAt" timestamp DEFAULT NOW()
+);
+
+CREATE TABLE "CurriculumComment" (
+    "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "content" text NOT NULL,
+    "suggestionId" text REFERENCES "CurriculumSuggestion"("id") ON DELETE CASCADE,
+    "authorId" text REFERENCES "User"("id") ON DELETE CASCADE,
+    "createdAt" timestamp DEFAULT NOW()
+);
