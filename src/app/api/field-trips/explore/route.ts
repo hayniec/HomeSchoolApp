@@ -60,19 +60,21 @@ export async function GET(req: Request) {
         // If city/state provided, geocode to get coordinates
         if (city && state && (!lat || !lng)) {
             const geo = await geocode(city, state);
-            if (geo) {
-                lat = geo.lat.toString();
-                lng = geo.lon.toString();
+            if (!geo) {
+                return NextResponse.json({ error: `Could not find location "${city}, ${state}". Check the city name and try again.` }, { status: 400 });
             }
+            lat = geo.lat.toString();
+            lng = geo.lon.toString();
         }
 
         if (!lat || !lng) {
-            return NextResponse.json({ error: "lat/lng or city/state are required" }, { status: 400 });
+            return NextResponse.json({ error: "Please provide a city/state or use your location." }, { status: 400 });
         }
 
         // OpenTripMap radius endpoint — returns places within a radius of a point
-        // No API key needed for moderate usage
-        const url = `${OTM_BASE}/radius?radius=${radiusMeters}&lon=${lng}&lat=${lat}&kinds=${kinds}&rate=2&limit=50&format=json`;
+        const apiKey = process.env.OPENTRIPMAP_API_KEY || "";
+        const keyParam = apiKey ? `&apikey=${apiKey}` : "";
+        const url = `${OTM_BASE}/radius?radius=${radiusMeters}&lon=${lng}&lat=${lat}&kinds=${kinds}&rate=2&limit=50&format=json${keyParam}`;
 
         const res = await fetch(url, {
             headers: { "User-Agent": "HomeschoolHub/1.0" },
@@ -81,7 +83,10 @@ export async function GET(req: Request) {
         if (!res.ok) {
             const text = await res.text();
             console.error("OpenTripMap error:", res.status, text);
-            return NextResponse.json({ error: "Failed to fetch from OpenTripMap" }, { status: 502 });
+            if (res.status === 403 || res.status === 401) {
+                return NextResponse.json({ error: "OpenTripMap API key is missing or invalid. Add OPENTRIPMAP_API_KEY to your environment variables (get a free key at opentripmap.com)." }, { status: 502 });
+            }
+            return NextResponse.json({ error: "Failed to fetch places from OpenTripMap. The service may be temporarily unavailable." }, { status: 502 });
         }
 
         const rawPlaces = await res.json();
@@ -93,7 +98,7 @@ export async function GET(req: Request) {
         const places = await Promise.all(
             top.map(async (place: any) => {
                 try {
-                    const detailRes = await fetch(`${OTM_BASE}/xid/${place.xid}?format=json`, {
+                    const detailRes = await fetch(`${OTM_BASE}/xid/${place.xid}?format=json${keyParam}`, {
                         headers: { "User-Agent": "HomeschoolHub/1.0" },
                     });
                     if (!detailRes.ok) return null;

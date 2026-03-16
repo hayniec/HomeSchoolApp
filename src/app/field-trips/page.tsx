@@ -86,6 +86,8 @@ export default function FieldTripsPage() {
     const [showDeletionLog, setShowDeletionLog] = useState(false);
     const [deletionLogs, setDeletionLogs] = useState<DeletionLog[]>([]);
     const [deletionLogLoading, setDeletionLogLoading] = useState(false);
+    const [exploreError, setExploreError] = useState("");
+    const [locationError, setLocationError] = useState("");
 
     const milesToKm = (mi: number) => mi * 1.60934;
     const kmToMiles = (km: number) => km / 1.60934;
@@ -113,6 +115,7 @@ export default function FieldTripsPage() {
 
     const fetchNearbyPlaces = useCallback(async (options: { lat?: number; lng?: number; city?: string; state?: string }) => {
         setExploringLoading(true);
+        setExploreError("");
         try {
             const radiusMeters = Math.round(milesToKm(radius) * 1000);
             const params = new URLSearchParams({ radius: radiusMeters.toString() });
@@ -124,8 +127,14 @@ export default function FieldTripsPage() {
             if (options.state) params.set("state", options.state);
             const res = await fetch(`/api/field-trips/explore?${params}`);
             const data = await res.json();
-            setNearbyPlaces(data.places || []);
+            if (!res.ok) {
+                setExploreError(data.error || "Failed to search for places. Please try again.");
+                setNearbyPlaces([]);
+            } else {
+                setNearbyPlaces(data.places || []);
+            }
         } catch {
+            setExploreError("Network error — could not reach the server. Check your connection and try again.");
             setNearbyPlaces([]);
         }
         setExploringLoading(false);
@@ -137,8 +146,13 @@ export default function FieldTripsPage() {
                 (pos) => {
                     setUserLocation([pos.coords.latitude, pos.coords.longitude]);
                     setHasLocation(true);
+                    setLocationError("");
                 },
-                () => {}
+                (err) => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        setLocationError("Location access was denied. Use the city/state search instead, or allow location access in your browser settings.");
+                    }
+                }
             );
         }
     }, []);
@@ -343,13 +357,24 @@ export default function FieldTripsPage() {
                         <button
                             className="btn btn-outline"
                             onClick={() => {
-                                navigator.geolocation?.getCurrentPosition((pos) => {
-                                    setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-                                    setHasLocation(true);
-                                    setExploreSource("location");
-                                    setExploreLabel("your location");
-                                    fetchNearbyPlaces({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-                                });
+                                if (!navigator.geolocation) {
+                                    setExploreError("Your browser does not support location services. Use the city/state search instead.");
+                                    return;
+                                }
+                                navigator.geolocation.getCurrentPosition(
+                                    (pos) => {
+                                        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+                                        setHasLocation(true);
+                                        setExploreSource("location");
+                                        setExploreLabel("your location");
+                                        setExploreError("");
+                                        setLocationError("");
+                                        fetchNearbyPlaces({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                    },
+                                    () => {
+                                        setExploreError("Could not get your location. Please allow location access in your browser, or use the city/state search instead.");
+                                    }
+                                );
                             }}
                             style={{ whiteSpace: "nowrap" }}
                         >
@@ -361,12 +386,17 @@ export default function FieldTripsPage() {
                             Searching for places...
                         </p>
                     )}
-                    {!exploringLoading && exploreLabel && filteredNearby.length > 0 && (
+                    {!exploringLoading && exploreError && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "#dc2626", background: "rgba(220,38,38,0.08)", padding: "0.75rem", borderRadius: "8px" }}>
+                            {exploreError}
+                        </p>
+                    )}
+                    {!exploringLoading && !exploreError && exploreLabel && filteredNearby.length > 0 && (
                         <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
                             Found <strong>{filteredNearby.length}</strong> places near <strong>{exploreLabel}</strong> within {radius} miles.
                         </p>
                     )}
-                    {!exploringLoading && exploreLabel && filteredNearby.length === 0 && (
+                    {!exploringLoading && !exploreError && exploreLabel && filteredNearby.length === 0 && (
                         <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
                             No places found near {exploreLabel}. Try increasing the radius in Filters.
                         </p>
@@ -378,7 +408,7 @@ export default function FieldTripsPage() {
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: "200px", position: "relative" }}>
                     <Search size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                    <input className="input" placeholder="Search trips..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ paddingLeft: "40px", marginBottom: 0 }} />
+                    <input className="input" placeholder="Filter by name or city..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ paddingLeft: "40px", marginBottom: 0 }} />
                 </div>
                 <button className={`btn ${showFilters ? "" : "btn-outline"}`} onClick={() => setShowFilters(!showFilters)} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <Filter size={16} /> Filters
@@ -412,17 +442,32 @@ export default function FieldTripsPage() {
                         </div>
                         {!hasLocation && (
                             <button className="btn btn-outline" onClick={() => {
-                                navigator.geolocation?.getCurrentPosition((pos) => {
-                                    setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-                                    setHasLocation(true);
-                                    setNearCity("");
-                                    setNearState("");
-                                });
+                                if (!navigator.geolocation) {
+                                    setLocationError("Your browser does not support location services.");
+                                    return;
+                                }
+                                navigator.geolocation.getCurrentPosition(
+                                    (pos) => {
+                                        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+                                        setHasLocation(true);
+                                        setLocationError("");
+                                        setNearCity("");
+                                        setNearState("");
+                                    },
+                                    () => {
+                                        setLocationError("Could not get your location. Allow location access in your browser settings, or search by city instead.");
+                                    }
+                                );
                             }} style={{ fontSize: "0.85rem" }}>
                                 <MapPin size={14} /> Use My Location
                             </button>
                         )}
                     </div>
+                    {locationError && (
+                        <p style={{ margin: "0.75rem 0 0", fontSize: "0.85rem", color: "#dc2626" }}>
+                            {locationError}
+                        </p>
+                    )}
                 </div>
             )}
 
