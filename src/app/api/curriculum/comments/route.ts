@@ -10,14 +10,19 @@ export async function POST(req: Request) {
         const { data: user } = await supabase.from("User").select("id").eq("email", email).single();
         if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-        const { content, suggestionId } = await req.json();
-        if (!content || !suggestionId) {
-            return NextResponse.json({ error: "content and suggestionId are required" }, { status: 400 });
+        const { content, suggestionId, rating } = await req.json();
+        if (!suggestionId || (!content && !rating)) {
+            return NextResponse.json({ error: "suggestionId and at least content or rating are required" }, { status: 400 });
         }
 
         const { data: comment, error } = await supabase
             .from("CurriculumComment")
-            .insert([{ content, suggestionId, authorId: user.id }])
+            .insert([{
+                content: content || null,
+                suggestionId,
+                authorId: user.id,
+                rating: rating ? parseInt(rating) : null
+            }])
             .select()
             .single();
 
