@@ -65,7 +65,8 @@ export async function GET(req: Request) {
 
         // Filter by distance if coordinates available
         if (searchLat !== 0 || searchLng !== 0) {
-            results = results
+            // Trips with coordinates: filter by radius and compute distance
+            const withCoords = results
                 .filter((trip: any) => trip.latitude != null && trip.longitude != null)
                 .map((trip: any) => ({
                     ...trip,
@@ -73,6 +74,11 @@ export async function GET(req: Request) {
                 }))
                 .filter((trip: any) => trip.distance <= radius)
                 .sort((a: any, b: any) => a.distance - b.distance);
+
+            // Trips without coordinates: always include (geocoding may have failed)
+            const withoutCoords = results.filter((trip: any) => trip.latitude == null || trip.longitude == null);
+
+            results = [...withCoords, ...withoutCoords];
         }
 
         return NextResponse.json({ trips: results });
