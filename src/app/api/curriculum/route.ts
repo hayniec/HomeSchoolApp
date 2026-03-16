@@ -9,7 +9,7 @@ export async function GET() {
             .select(`
                 id, name, subject, gradeLevel, description, pros, cons, cost, rating, format, website, createdAt,
                 author:User!authorId(id, name),
-                comments:CurriculumComment(id, content, createdAt, author:User!authorId(id, name))
+                comments:CurriculumComment(id, content, rating, createdAt, author:User!authorId(id, name))
             `)
             .order("createdAt", { ascending: false });
 

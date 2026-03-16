@@ -172,7 +172,8 @@ CREATE TABLE "CurriculumSuggestion" (
 
 CREATE TABLE "CurriculumComment" (
     "id" text PRIMARY KEY DEFAULT uuid_generate_v4()::text,
-    "content" text NOT NULL,
+    "content" text,
+    "rating" integer,
     "suggestionId" text REFERENCES "CurriculumSuggestion"("id") ON DELETE CASCADE,
     "authorId" text REFERENCES "User"("id") ON DELETE CASCADE,
     "createdAt" timestamp DEFAULT NOW()

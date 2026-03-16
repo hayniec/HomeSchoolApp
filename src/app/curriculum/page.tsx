@@ -22,7 +22,7 @@ interface Suggestion {
     website: string | null;
     createdAt: string;
     author: { id: string; name: string } | null;
-    comments: { id: string; content: string; createdAt: string; author: { id: string; name: string } | null }[];
+    comments: { id: string; content: string | null; rating: number | null; createdAt: string; author: { id: string; name: string } | null }[];
 }
 
 function StarRating({ rating, size = "1.6rem" }: { rating: number | null; size?: string }) {
@@ -33,6 +33,39 @@ function StarRating({ rating, size = "1.6rem" }: { rating: number | null; size?:
                 <span key={i} style={{ color: i <= rating ? '#f39c12' : '#ddd' }}>&#9733;</span>
             ))}
         </span>
+    );
+}
+
+function ClickableStarRating({ value, onChange, size = "1.4rem" }: { value: number; onChange: (v: number) => void; size?: string }) {
+    return (
+        <span style={{ fontSize: size, letterSpacing: '2px', cursor: 'pointer' }}>
+            {[1, 2, 3, 4, 5].map(i => (
+                <span key={i} onClick={() => onChange(value === i ? 0 : i)} style={{ color: i <= value ? '#f39c12' : '#ddd' }}>&#9733;</span>
+            ))}
+        </span>
+    );
+}
+
+function CommunityRating({ suggestion }: { suggestion: Suggestion }) {
+    const communityRatings = (suggestion.comments || []).filter(c => c.rating != null).map(c => c.rating as number);
+    const avgRating = communityRatings.length > 0 ? communityRatings.reduce((a, b) => a + b, 0) / communityRatings.length : null;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+            {suggestion.rating && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Author:</span>
+                    <StarRating rating={suggestion.rating} />
+                </div>
+            )}
+            {avgRating !== null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Community: {avgRating.toFixed(1)}</span>
+                    <StarRating rating={Math.round(avgRating)} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({communityRatings.length})</span>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -58,6 +91,7 @@ export default function CurriculumPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
+    const [commentRatings, setCommentRatings] = useState<Record<string, number>>({});
 
     // Filters
     const [filterSubject, setFilterSubject] = useState("");
@@ -111,16 +145,18 @@ export default function CurriculumPage() {
     };
 
     const handlePostComment = async (suggestionId: string) => {
-        const content = commentTexts[suggestionId]?.trim();
-        if (!content) return;
+        const content = commentTexts[suggestionId]?.trim() || null;
+        const rating = commentRatings[suggestionId] || null;
+        if (!content && !rating) return;
 
         await fetch("/api/curriculum/comments", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content, suggestionId }),
+            body: JSON.stringify({ content, suggestionId, rating }),
         });
 
         setCommentTexts(prev => ({ ...prev, [suggestionId]: "" }));
+        setCommentRatings(prev => ({ ...prev, [suggestionId]: 0 }));
         fetchSuggestions();
     };
 
@@ -216,7 +252,7 @@ export default function CurriculumPage() {
                                         ))}
                                     </div>
                                 </div>
-                                <StarRating rating={suggestion.rating} />
+                                <CommunityRating suggestion={suggestion} />
                             </div>
 
                             <p style={{ margin: '0 0 0.25rem 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
@@ -256,26 +292,38 @@ export default function CurriculumPage() {
                                 <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Comments ({suggestion.comments?.length ?? 0})</h3>
                                 {(suggestion.comments || []).map((comment) => (
                                     <div key={comment.id} style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                                        <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>
-                                            {comment.author?.name ?? "Unknown"}{' '}
-                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 'normal' }}>
-                                                &bull; {new Date(comment.createdAt).toLocaleDateString()}
-                                            </span>
-                                        </p>
-                                        <p style={{ margin: 0 }}>{comment.content}</p>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>
+                                                {comment.author?.name ?? "Unknown"}{' '}
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 'normal' }}>
+                                                    &bull; {new Date(comment.createdAt).toLocaleDateString()}
+                                                </span>
+                                            </p>
+                                            {comment.rating && <StarRating rating={comment.rating} size="1rem" />}
+                                        </div>
+                                        {comment.content && <p style={{ margin: 0 }}>{comment.content}</p>}
                                     </div>
                                 ))}
-                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                                    <input
-                                        type="text"
-                                        className="input"
-                                        placeholder="Share your thoughts..."
-                                        style={{ marginBottom: 0, flex: 1 }}
-                                        value={commentTexts[suggestion.id] || ""}
-                                        onChange={e => setCommentTexts(prev => ({ ...prev, [suggestion.id]: e.target.value }))}
-                                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePostComment(suggestion.id); } }}
-                                    />
-                                    <button className="btn" onClick={() => handlePostComment(suggestion.id)}>Post</button>
+                                <div style={{ marginTop: '1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Your rating:</span>
+                                        <ClickableStarRating
+                                            value={commentRatings[suggestion.id] || 0}
+                                            onChange={v => setCommentRatings(prev => ({ ...prev, [suggestion.id]: v }))}
+                                        />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <input
+                                            type="text"
+                                            className="input"
+                                            placeholder="Share your thoughts... (optional)"
+                                            style={{ marginBottom: 0, flex: 1 }}
+                                            value={commentTexts[suggestion.id] || ""}
+                                            onChange={e => setCommentTexts(prev => ({ ...prev, [suggestion.id]: e.target.value }))}
+                                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handlePostComment(suggestion.id); } }}
+                                        />
+                                        <button className="btn" onClick={() => handlePostComment(suggestion.id)}>Post</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
