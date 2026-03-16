@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 export const dynamic = 'force-dynamic';
 
 const SUBJECTS = ["Math", "Science", "Language Arts", "History", "Foreign Language", "Art", "Music", "PE", "Other"];
-const GRADE_LEVELS = ["Pre-K", "K-2", "3-5", "6-8", "9-12"];
+const GRADE_LEVELS = ["All Grade Levels", "Pre-K", "K-2", "3-5", "6-8", "9-12"];
 const FORMATS = ["Online", "Printable", "Physical Copy"];
 
 async function addSuggestion(formData: FormData) {
