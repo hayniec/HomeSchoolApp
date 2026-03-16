@@ -14,13 +14,24 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): 
 }
 
 async function geocodeAddress(address: string, city: string, state: string): Promise<{ lat: number; lon: number } | null> {
-    const query = encodeURIComponent(`${address}, ${city}, ${state}`);
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
-        headers: { "User-Agent": "HomeschoolHub/1.0" }
-    });
-    const data = await res.json();
-    if (data.length > 0) {
-        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    // Try progressively less specific queries until one resolves
+    const attempts = [
+        `${address}, ${city}, ${state}`,
+        `${city}, ${state}`,
+    ];
+    for (const q of attempts) {
+        const query = encodeURIComponent(q);
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
+                headers: { "User-Agent": "HomeschoolHub/1.0" }
+            });
+            const data = await res.json();
+            if (data.length > 0) {
+                return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+            }
+        } catch {
+            // Network error — try next attempt
+        }
     }
     return null;
 }
