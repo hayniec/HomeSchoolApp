@@ -3,10 +3,15 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 
-// Netlify supplies the URL environment variable, Vercel supplies VERCEL_URL.
-// Without this, NextAuth falls back to localhost:3000 on Netlify.
-if (process.env.URL && !process.env.NEXTAUTH_URL) {
-  process.env.NEXTAUTH_URL = process.env.URL;
+// Ensure NEXTAUTH_URL is set so signIn/signOut redirects and cookies match the
+// deployed origin. Netlify exposes URL (production) and DEPLOY_PRIME_URL (deploy
+// previews); Vercel exposes VERCEL_URL without a scheme.
+if (!process.env.NEXTAUTH_URL) {
+  const inferred =
+    process.env.URL ||
+    process.env.DEPLOY_PRIME_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  if (inferred) process.env.NEXTAUTH_URL = inferred;
 }
 const handler = NextAuth({
   providers: [

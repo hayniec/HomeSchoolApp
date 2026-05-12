@@ -68,10 +68,15 @@ export function Sidebar({ isOpen, closeSidebar, isMobile }: SidebarProps) {
             </div>
 
             <div className="sidebar-footer">
-                <div className="sidebar-item" onClick={() => signOut()}>
+                <button
+                    type="button"
+                    className="sidebar-item"
+                    onClick={() => signOut({ callbackUrl: "/", redirect: true })}
+                    style={{ background: "transparent", border: "none", width: "100%", textAlign: "left", cursor: "pointer", color: "inherit", font: "inherit" }}
+                >
                     <LogOut size={20} />
                     <span style={{ fontWeight: 600 }}>Sign Out</span>
-                </div>
+                </button>
             </div>
         </div>
     );
