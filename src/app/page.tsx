@@ -73,7 +73,7 @@ export default function Home() {
             <p style={{ margin: 0, color: 'var(--text-muted)' }}>Welcome back, {session.user?.name || session.user?.email}</p>
           </div>
         </div>
-        <button className="btn btn-outline" onClick={() => signOut()}>Sign Out</button>
+        <button className="btn btn-outline" onClick={() => signOut({ callbackUrl: "/", redirect: true })}>Sign Out</button>
       </header>
 
       <main className="grid">
